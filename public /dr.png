@@ -1,0 +1,31 @@
+// index.js => QR Save to file
+const { default: makeWASocket, useSingleFileAuthState } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
+const fs = require('fs');
+const P = require('pino');
+const { state, saveState } = useSingleFileAuthState('./session/auth_info.json');
+
+async function startBot() {
+  const sock = makeWASocket({
+    logger: P({ level: 'silent' }),
+    auth: state,
+    printQRInTerminal: true
+  });
+
+  sock.ev.on('connection.update', (update) => {
+    const { qr } = update;
+    if (qr) {
+      const qrTerminal = require('qrcode-terminal');
+      qrTerminal.generate(qr, { small: true });
+
+      const QRCode = require('qrcode');
+      QRCode.toFile('./pair-web/public/qr.png', qr, { width: 300 }, function (err) {
+        if (err) console.error('QR Save Error:', err);
+        else console.log('📸 QR Code saved to pair-web/public/qr.png');
+      });
+    }
+  });
+
+  sock.ev.on('creds.update', saveState);
+}
+startBot();
